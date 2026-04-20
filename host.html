@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ビンゴ数字共有（司会）</title>
+  <style>
+    :root{--bg:#0b1220;--card:#111a2e;--text:#e6eaf2;--muted:#9aa3b2;--accent:#6ee7ff;--danger:#ff6b6b;}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans JP',sans-serif;background:linear-gradient(180deg,#0b1220,#050914);color:var(--text);}
+    .wrap{max-width:720px;margin:0 auto;padding:16px;}
+    .card{background:rgba(17,26,46,.9);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);}
+    h1{font-size:20px;margin:0 0 8px;}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+    .pill{font-size:12px;color:var(--muted);background:rgba(255,255,255,.06);padding:6px 10px;border-radius:999px;}
+    .big{font-size:64px;line-height:1;font-weight:800;letter-spacing:-0.02em;margin:12px 0;}
+    .btn{appearance:none;border:0;border-radius:14px;padding:14px 16px;font-size:16px;font-weight:700;cursor:pointer;}
+    .btn.primary{background:var(--accent);color:#001018;}
+    .btn.ghost{background:rgba(255,255,255,.08);color:var(--text);}
+    .btn.danger{background:rgba(255,107,107,.18);color:#ffd6d6;border:1px solid rgba(255,107,107,.35);}
+    .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin-top:10px;}
+    .cell{font-size:12px;text-align:center;padding:8px 0;border-radius:10px;background:rgba(255,255,255,.06);color:var(--muted);}
+    .cell.hit{background:rgba(110,231,255,.18);color:var(--text);border:1px solid rgba(110,231,255,.28);}
+    .cell.last{outline:2px solid var(--accent);}
+    .note{font-size:12px;color:var(--muted);margin-top:10px;}
+    input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:var(--text);border-radius:10px;padding:10px 12px;font-size:14px;}
+    .footer{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>ビンゴ数字共有（司会）</h1>
+      <div class="row">
+        <div class="pill">room: <span id="room"></span></div>
+        <div class="pill">max: <span id="max"></span></div>
+        <div class="pill">閲覧URL: <span id="viewerUrl"></span></div>
+      </div>
+
+      <div class="big" id="current">--</div>
+
+      <div class="row">
+        <button class="btn primary" id="drawBtn">次の数字</button>
+        <button class="btn ghost" id="undoBtn">ひとつ戻す</button>
+        <button class="btn danger" id="resetBtn">リセット</button>
+      </div>
+
+      <div class="note">※参加者は viewer.html を開くだけ。司会はこの画面で「次の数字」を押すだけ。</div>
+
+      <div class="footer">
+        <input id="copyBox" readonly style="flex:1;min-width:260px" />
+        <button class="btn ghost" id="copyBtn">URLコピー</button>
+      </div>
+
+      <div id="grid" class="grid"></div>
+      <div class="note" id="status"></div>
+    </div>
+  </div>
+
+  <!-- Firebase (CDNJS compat build) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/12.3.0/firebase-app-compat.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/12.3.0/firebase-database-compat.min.js"></script>
+
+  <script>
+    // ====== ここだけ自分の firebaseConfig に差し替え ======
+
+
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDkKDyCu7V08ZGrU14h8q-30aP6iXQv5vI",
+  authDomain: "bingo-38173.firebaseapp.com",
+  databaseURL: "https://bingo-38173-default-rtdb.firebaseio.com",
+  projectId: "bingo-38173",
+  storageBucket: "bingo-38173.firebasestorage.app",
+  messagingSenderId: "519916981602",
+  appId: "1:519916981602:web:e73b629d208c1f95b2303b"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+
+//  const firebaseConfig = {
+//    apiKey: "YOUR_API_KEY",
+//   authDomain: "YOUR_AUTH_DOMAIN",
+//   databaseURL: "YOUR_DATABASE_URL",
+//    projectId: "YOUR_PROJECT_ID",
+//    storageBucket: "YOUR_STORAGE_BUCKET",
+//   messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+//   appId: "YOUR_APP_ID",
+// };
+    // ======================================================
+
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const qs = new URLSearchParams(location.search);
+    const room = qs.get('room') || 'bbq';
+    const max = Math.max(1, Math.min(200, parseInt(qs.get('max') || '75', 10)));
+
+    const stateRef = db.ref(`bingo/${room}`);
+
+    const elRoom = document.getElementById('room');
+    const elMax = document.getElementById('max');
+    const elCurrent = document.getElementById('current');
+    const elGrid = document.getElementById('grid');
+    const elStatus = document.getElementById('status');
+    const elViewerUrl = document.getElementById('viewerUrl');
+    const elCopyBox = document.getElementById('copyBox');
+
+    elRoom.textContent = room;
+    elMax.textContent = String(max);
+
+    const viewerUrl = new URL('viewer.html', location.href);
+    viewerUrl.searchParams.set('room', room);
+    elViewerUrl.textContent = viewerUrl.pathname + viewerUrl.search;
+    elCopyBox.value = viewerUrl.toString();
+
+    function renderGrid(called, last){
+      elGrid.innerHTML = '';
+      for(let i=1;i<=max;i++){
+        const d = document.createElement('div');
+        d.className = 'cell' + (called.includes(i) ? ' hit' : '') + (i===last ? ' last' : '');
+        d.textContent = String(i);
+        elGrid.appendChild(d);
+      }
+    }
+
+    function pickNext(called){
+      const remaining = [];
+      for(let i=1;i<=max;i++) if(!called.includes(i)) remaining.push(i);
+      if(!remaining.length) return null;
+      const idx = Math.floor(Math.random()*remaining.length);
+      return remaining[idx];
+    }
+
+    // リアルタイム購読
+    stateRef.on('value', snap => {
+      const v = snap.val() || {};
+      const called = Array.isArray(v.called) ? v.called : [];
+      const last = typeof v.last === 'number' ? v.last : null;
+      elCurrent.textContent = last ? String(last) : '--';
+      renderGrid(called, last);
+      elStatus.textContent = `抽選済み ${called.length}/${max}`;
+    });
+
+    document.getElementById('drawBtn').addEventListener('click', async () => {
+      elStatus.textContent = '抽選中…';
+      await stateRef.transaction(curr => {
+        curr = curr || { called: [], last: null };
+        const called = Array.isArray(curr.called) ? curr.called.slice() : [];
+        const next = pickNext(called);
+        if(next === null) return curr;
+        called.push(next);
+        curr.called = called;
+        curr.last = next;
+        curr.updatedAt = Date.now();
+        return curr;
+      });
+    });
+
+    document.getElementById('undoBtn').addEventListener('click', async () => {
+      await stateRef.transaction(curr => {
+        curr = curr || { called: [], last: null };
+        const called = Array.isArray(curr.called) ? curr.called.slice() : [];
+        called.pop();
+        curr.called = called;
+        curr.last = called.length ? called[called.length-1] : null;
+        curr.updatedAt = Date.now();
+        return curr;
+      });
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', async () => {
+      if(!confirm('履歴を全て消して最初からやり直します。OK？')) return;
+      await stateRef.set({ called: [], last: null, updatedAt: Date.now() });
+    });
+
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      try{
+        await navigator.clipboard.writeText(elCopyBox.value);
+        elStatus.textContent = 'URLをコピーしました';
+      }catch(e){
+        elCopyBox.select();
+        document.execCommand('copy');
+        elStatus.textContent = 'URLをコピーしました（フォールバック）';
+      }
+    });
+
+  </script>
+</body>
+</html>
