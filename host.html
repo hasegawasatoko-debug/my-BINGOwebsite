@@ -158,6 +158,7 @@ db.ref("debug").set({
       elStatus.textContent = '抽選中…';
       await stateRef.transaction(curr => {
         curr = curr || { called: [], last: null };
+        curr.max = max;
         const called = Array.isArray(curr.called) ? curr.called.slice() : [];
         const next = pickNext(called);
         if(next === null) return curr;
