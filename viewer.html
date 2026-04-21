@@ -106,7 +106,7 @@ const firebaseConfig = {
     stateRef.on('value', snap => {
       const v = snap.val() || {};
       const called = Array.isArray(v.called) ? v.called : [];
-      const max = called.length ? Math.max(...called) : (parseInt(qs.get('max')||'75',10));
+      const max = called.length ? Math.max(...called) : (parseInt(qs.get('max')||'100',10));
       // host側のmaxが分からない場合に備え、lastやcalledから推定しつつ、URL指定があればそちら優先
       const urlMax = parseInt(qs.get('max')||'0',10);
       const effectiveMax = urlMax>0 ? urlMax : (v.max || 75);
