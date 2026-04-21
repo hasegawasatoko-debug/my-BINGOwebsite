@@ -109,7 +109,7 @@ const firebaseConfig = {
       const max = called.length ? Math.max(...called) : (parseInt(qs.get('max')||'100',10));
       // host側のmaxが分からない場合に備え、lastやcalledから推定しつつ、URL指定があればそちら優先
       const urlMax = parseInt(qs.get('max')||'0',10);
-      const effectiveMax = urlMax>0 ? urlMax : (v.max || 75);
+      const effectiveMax = urlMax>0 ? urlMax : (v.max || 100);
 
       const last = typeof v.last === 'number' ? v.last : null;
       elCurrent.textContent = last ? String(last) : '--';
