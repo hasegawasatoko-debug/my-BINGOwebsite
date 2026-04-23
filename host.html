@@ -106,7 +106,7 @@ db.ref("debug").set({
 
     const qs = new URLSearchParams(location.search);
     const room = qs.get('room') || 'bbq';
-    const max = Math.max(1, Math.min(200, parseInt(qs.get('max') || '100', 10)));
+    const max = Math.max(1, Math.min(200, parseInt(qs.get('max') || '75', 10)));
 
     const stateRef = db.ref(`bingo/${room}`);
 
